@@ -2,6 +2,9 @@
 
 struct Card
 {
+	Card() {}
+	Card(char r, char s): rank(r), suit(s) {}
+
     char rank;
     char suit;
 };

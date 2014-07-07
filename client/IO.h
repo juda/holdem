@@ -12,7 +12,8 @@ public:
     IO(const std::string &host, const std::string &service) : io_service_(), socket_(io_service_)
     {
         tcp::resolver resolver(io_service_);
-        tcp::resolver::query query(tcp::v4(), host, service);
+		tcp::resolver::query query(host, service);
+		//tcp::resolver::query query(tcp::v4(), host, service);
         tcp::resolver::iterator iterator = resolver.resolve(query);
         boost::asio::connect(socket_, iterator);
     }
@@ -23,6 +24,13 @@ public:
         boost::asio::read_until(socket_, b, '\n');
         std::istream is(&b);
         std::getline(is, message);
+
+		std::cout << "[IO received] " << message << std::endl;
+		while (is) {
+			std::string msg;
+			std::getline(is, msg);
+			std::cout << "[IO received] " << msg << std::endl;
+		}
     }
 
     void send(const std::string &message)

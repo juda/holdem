@@ -36,6 +36,7 @@ public:
 
     void send(int i, const std::string &message) override
     {
+		std::cerr << "[send to " <<  sessions_[i]->login_name() << "] " << message << std::endl;
         sessions_[i]->send(message + "\n");
     }
 

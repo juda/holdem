@@ -8,6 +8,8 @@
 #include <cassert>
 #include <algorithm>
 #include <cctype>
+#include <iostream>
+#include <cstdio>
 #include "Card.h"
 #include "Deck.h"
 #include "IO.h"
@@ -131,6 +133,11 @@ private:
             for (int i = 0; i < 5; i++)
                 receive(player, hands[player].first[i]);
 
+			std::cerr << "Player " << player << " shows:";
+			for (int i = 0; i < 5; ++i) 
+				std::cerr << ' ' << hands[player].first[i].rank << ' ' << suit_of(hands[player].first[i]);
+			std::cerr << std::endl;
+
             hands[player].second = player;
         }
 
@@ -139,11 +146,37 @@ private:
 		std::vector<std::pair<ranking_t, int> > ranking; 
 
 		for (int player = 0; player < n; ++player) {
+			if (folded[player])
+				continue;
+
 			ranking.emplace_back(calculate_ranking(hands[player].first, hands[player].second), hands[player].second);
+		}
+
+		for (const auto& rank_id : ranking) {
+			int player = rank_id.second;
+			
+			std::cerr << "Player " << player << std::endl;
+
+			fprintf(stderr, "debug player %d shows %c %c %c %c %c %c %c %c %c %c , which is %d .\n",
+					player, hands[player].first[0].rank, hands[player].first[0].suit,
+							hands[player].first[1].rank, hands[player].first[1].suit,
+							hands[player].first[2].rank, hands[player].first[2].suit,
+							hands[player].first[3].rank, hands[player].first[3].suit,
+							hands[player].first[4].rank, hands[player].first[4].suit,
+							rank_id.first.front());
+
+			fprintf(stderr, "player %d shows %c %s %c %s %c %s %c %s %c %s , which is %s .\n",
+					player, hands[player].first[0].rank, suit_of(hands[player].first[0]),
+							hands[player].first[1].rank, suit_of(hands[player].first[1]),
+							hands[player].first[2].rank, suit_of(hands[player].first[2]),
+							hands[player].first[3].rank, suit_of(hands[player].first[3]),
+							hands[player].first[4].rank, suit_of(hands[player].first[4]),
+							HAND_STRING[rank_id.first.front()]);
 		}
 
 		// compare and win pots
 
+		std::cerr << "Comparing hands" << std::endl;
 		sort(ranking.begin(), ranking.end(), 
 				[](const std::pair<ranking_t, int>& lhs, const std::pair<ranking_t, int>& rhs) -> bool{
 					return std::lexicographical_compare(rhs.first.begin(), rhs.first.end(), lhs.first.begin(), lhs.first.end());
@@ -195,7 +228,9 @@ private:
 		broadcast(oss.str().c_str());
 	}
 
-	ranking_t&& calculate_ranking(std::array<Card, 5> hand, int player) {
+	ranking_t calculate_ranking(std::array<Card, 5> hand, int player) {
+		std::cerr << "calculating_ranking " << player << std::endl;
+
 		//check validity
 		bool match[5] = {false, false, false, false, false};
 		
@@ -230,8 +265,10 @@ private:
 					break;
 				case 'K':
 					card.rank = 13;
+					break;
 				case 'A':
 					card.rank = 14;
+					break;
 				}
 			}
 		}
