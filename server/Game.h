@@ -5,6 +5,9 @@
 #include <sstream>
 #include <string>
 #include <vector>
+#include <cassert>
+#include <algorithm>
+#include <cctype>
 #include "Card.h"
 #include "Deck.h"
 #include "IO.h"
@@ -76,19 +79,53 @@ public:
             }
         }
 
-        // TODO only one player left
+        // only one player left
+		assert( all_except_one_fold() );
+		
+		int winner = 0;
+		for ( ; winner < n && folded[winner]; ++winner) ;
+		
+		declare_winner({winner});
     }
 
 private:
+
+	typedef std::array<int, 6> ranking_t; 
+	static const int HAND_INVALID = 0;
+	static const int HAND_HIGH_CARD = 1;
+	static const int HAND_ONE_PAIR = 2;
+	static const int HAND_TWO_PAIR = 3;
+	static const int HAND_THREE_OF_A_KIND = 4;
+	static const int HAND_STRAIGHT = 5;
+	static const int HAND_FLUSH = 6;
+	static const int HAND_FULL_HOUSE = 7;
+	static const int HAND_FOUR_OF_A_KIND = 8;
+	static const int HAND_STRAIGHT_FLUSH = 9;
+	static const int HAND_ROYAL_FLUSH = 10;
+
+	const char* HAND_STRING[11] = {
+		"invalid",
+		"high card",
+		"one pair",
+		"two pair",
+		"three of a kind",
+		"straight",
+		"flush",
+		"full house",
+		"four of a kind",
+		"straight flush",
+		"royal flush",
+	};
+
     void showdown()
     {
-        std::vector<std::pair<std::array<Card, 5>, int>> hands(n);
+		std::vector<std::pair<std::array<Card, 5>, int>> hands(n);
 
         for (int player = 0; player < n; player++)
         {
             if (folded[player])
                 continue;
-
+ 
             send(player, "showdown");
 
             for (int i = 0; i < 5; i++)
@@ -97,10 +134,235 @@ private:
             hands[player].second = player;
         }
 
-        // TODO check validity of hands
+        // check validity of hands
+		
+		std::vector<std::pair<ranking_t, int> > ranking; 
 
-        // TODO compare and win pots
+		for (int player = 0; player < n; ++player) {
+			ranking.emplace_back(calculate_ranking(hands[player].first, hands[player].second), hands[player].second);
+		}
+
+		// compare and win pots
+
+		sort(ranking.begin(), ranking.end(), 
+				[](const std::pair<ranking_t, int>& lhs, const std::pair<ranking_t, int>& rhs) -> bool{
+					return std::lexicographical_compare(rhs.first.begin(), rhs.first.end(), lhs.first.begin(), lhs.first.end());
+				});
+
+		for (const auto& rank_id : ranking) {
+			int player = rank_id.second;
+      
+			broadcast("player %d shows %c %s %c %s %c %s %c %s %c %s , which is %s .",
+					player, hands[player].first[0].rank, suit_of(hands[player].first[0]),
+							hands[player].first[1].rank, suit_of(hands[player].first[1]),
+							hands[player].first[2].rank, suit_of(hands[player].first[2]),
+							hands[player].first[3].rank, suit_of(hands[player].first[3]),
+							hands[player].first[4].rank, suit_of(hands[player].first[4]),
+							HAND_STRING[rank_id.first.front()]);
+		}
+
+		if (ranking.front().first.front() == HAND_INVALID) {
+			broadcast("All hands are invalie, no winner.");
+		}
+
+		else {
+			int i = 1;
+			for ( ; i < n && std::equal(ranking[0].first.begin(), ranking[0].first.end(), ranking[i].first.begin()); ++i);
+			
+			std::vector<int> winner;
+			transform(ranking.begin(), ranking.begin() + i, back_inserter(winner),
+					[](const std::pair<ranking_t, int>& rank_id) -> int {
+						return rank_id.second;	
+					});
+
+			declare_winner(winner);
+		}
+
     }
+
+	void declare_winner(const std::vector<int>& winner) {
+
+		int pot_sum = accumulate(pots.begin(), pots.end(), 0, [](int acc, const Pot& pot) -> int { return acc + pot.amount(); });
+		int chips_won = pot_sum / winner.size();
+
+		std::ostringstream oss;
+		oss << "There are " << winner.size() << " winners:";
+		for (int player : winner) {
+			oss << ' ' << player;
+			chips[player] += chips_won;
+		}
+		oss << ", each of whom wins " << chips_won << " chips."; 
+		broadcast(oss.str().c_str());
+	}
+
+	ranking_t&& calculate_ranking(std::array<Card, 5> hand, int player) {
+		//check validity
+		bool match[5] = {false, false, false, false, false};
+		
+		for (const auto& card : hole_cards[player]) {
+			int i = 0;
+			for ( ; i < 5 && (match[i] || hand[i] != card); ++i) ;
+			if (i < 5) match[i] = true;
+		}
+		for (const auto& card : community_cards) {
+			int i = 0;
+			for ( ; i < 5 && (match[i] || hand[i] != card); ++i) ;
+			if (i < 5) match[i] = true;
+		}
+
+		if (std::any_of(match, match + 5, [](bool matched) -> bool { return !matched; })){
+			return std::move(ranking_t{HAND_INVALID});
+		}
+		
+		// replace character rank with numerical rank
+		for (auto& card : hand){
+			if (isdigit(card.rank)) card.rank = card.rank - '0';
+			else {
+				switch (card.rank){
+				case 'T':
+					card.rank = 10;
+					break;
+				case 'J':
+					card.rank = 11;
+					break;
+				case 'Q':
+					card.rank = 12;
+					break;
+				case 'K':
+					card.rank = 13;
+				case 'A':
+					card.rank = 14;
+				}
+			}
+		}
+
+		std::sort(hand.begin(), hand.end(), 
+				[](const Card& lhs, const Card& rhs) -> bool {
+					return (lhs.rank > rhs.rank) || ((lhs.rank == rhs.rank) & (lhs.suit > rhs.suit));
+				});
+
+		// check flush
+		bool is_flush = std::all_of(hand.begin() + 1, hand.end(), 
+				[&](const Card& lhs) -> bool {
+					return lhs.suit == hand[0].suit;
+				});
+
+		// check straight
+		int straight_leading = -1;
+		{
+			// special case of A, 2, 3, 4, 5
+			if (hand[0].rank == 14 && hand[4].rank == 5 
+				&& hand[1].rank == 2 && hand[2].rank == 3
+				&& hand[3].rank == 4) {
+				straight_leading = 5;
+			}
+
+			else {
+				int i = 1;
+				for ( ; i < 5 && hand[i].rank + 1 == hand[i-1].rank; ++i);
+				if (i == 5) straight_leading = hand[0].rank;
+			}
+		}
+
+		// check pairs, three of a kind, four of a kind
+		int pair_cnt = 0;
+		int pair_value[2];
+		int triple_value = -1;
+		int quad_value = -1;
+		for (int i = 0; i < 4; ++i){
+			int j = i + 1;
+			for ( ; j < 5 && hand[j].rank == hand[i].rank; ++j ) ;
+			
+			switch ( j - i ) {
+			case 2:
+				pair_value[pair_cnt++] = hand[i].rank;
+				break;
+			case 3:
+				triple_value = hand[i].rank;
+				break;
+			case 4:
+			case 5:
+				quad_value = hand[i].rank;
+				break;
+			default:
+				continue;
+			}
+
+			i = j - 1;
+		}
+
+
+		// royal flush
+		if (is_flush && straight_leading == 14) {
+			return std::move(ranking_t{HAND_ROYAL_FLUSH}); 
+		}	
+		
+		// straight flush
+		if (is_flush && straight_leading != -1) {
+			return std::move(ranking_t{HAND_STRAIGHT_FLUSH, straight_leading});
+		}
+
+		// four of a kind
+		if (quad_value != -1) {
+			int rem_value = (hand[0].rank == quad_value) ? (hand[4].rank) : (hand[0].rank);
+
+			return std::move(ranking_t{HAND_FOUR_OF_A_KIND, quad_value, rem_value});
+		}
+
+		// full house
+		if (triple_value != -1 && pair_cnt == 1) {
+			return std::move(ranking_t{HAND_FULL_HOUSE, triple_value, pair_value[0]});
+		}
+
+		// flush
+		if (is_flush) {
+			return std::move(ranking_t{HAND_FLUSH, hand[0].rank, hand[1].rank, hand[2].rank, hand[3].rank, hand[4].rank});
+		}
+
+		// straight 
+		if (straight_leading != -1) {
+			return std::move(ranking_t{HAND_STRAIGHT, straight_leading});
+		}
+		
+		// three of a kind
+		if (triple_value != -1){
+			int rem_value[2];
+			int rem_cnt = 0;
+			for (int i = 0; rem_cnt < 2; ++i)
+				if (hand[i].rank != triple_value)
+					rem_value[rem_cnt++] = hand[i].rank;
+
+			return std::move(ranking_t{HAND_THREE_OF_A_KIND, triple_value, rem_value[0], rem_value[1]});
+		}
+
+		// two pair
+		if (pair_cnt == 2) {
+			int rem_value;
+			for (int i = 0; ; ++i) {
+				if (hand[i].rank != pair_value[0] && hand[i].rank != pair_value[1]) {
+					rem_value = hand[i].rank;
+					break;
+				}
+			}
+
+			return std::move(ranking_t{HAND_TWO_PAIR, pair_value[0], pair_value[1], rem_value});
+		}
+
+		// one pair
+		if (pair_cnt == 1) {
+			int rem_value[3];
+			int rem_cnt = 0;
+			for (int i = 0; rem_cnt < 3; ++i){
+				if (hand[i].rank != pair_value[0])
+					rem_value[rem_cnt++] = hand[i].rank;
+			}
+
+			return std::move(ranking_t{HAND_ONE_PAIR, pair_value[0], rem_value[0], rem_value[1], rem_value[2]});
+		}
+
+		// high card
+		return std::move(ranking_t{HAND_HIGH_CARD, hand[0].rank, hand[1].rank, hand[2].rank, hand[3].rank, hand[4].rank});
+	}
 
     // return true if game continues
     bool bet_loop()

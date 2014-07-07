@@ -23,6 +23,7 @@ public:
           chips_(num_players, initial_chips),
           debts_(num_players, 0)
     {
+		std::cerr << "Starting server with port " << port << std::endl;
         start_accept();
     }
 

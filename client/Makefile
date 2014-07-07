@@ -1,4 +1,4 @@
-TARGET = server
+TARGET = client
 LIBS = -lpthread -lboost_system
 CXX = g++
 CFLAGS = -std=c++11 -Wall -Wextra -g
@@ -21,3 +21,4 @@ $(TARGET): $(OBJECTS) $(SUNDOWN)
 
 clean:
 	-rm -rf bin
+	
