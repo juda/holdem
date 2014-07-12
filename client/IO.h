@@ -20,17 +20,9 @@ public:
 
     void receive(std::string &message)
     {
-        boost::asio::streambuf b;
-        boost::asio::read_until(socket_, b, '\n');
-        std::istream is(&b);
+        boost::asio::read_until(socket_, buffer, '\n');
+        std::istream is(&buffer);
         std::getline(is, message);
-
-		std::cout << "[IO received] " << message << std::endl;
-		while (is) {
-			std::string msg;
-			std::getline(is, msg);
-			std::cout << "[IO received] " << msg << std::endl;
-		}
     }
 
     void send(const std::string &message)
@@ -41,6 +33,7 @@ public:
 private:
     boost::asio::io_service io_service_;
     tcp::socket socket_;
+    boost::asio::streambuf buffer;
 };
 
 }

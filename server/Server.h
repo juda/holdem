@@ -19,9 +19,7 @@ public:
         : io_service_(io_service),
           acceptor_(io_service, tcp::endpoint(tcp::v4(), port)),
           num_players_(num_players),
-          initial_chips_(initial_chips),
-          chips_(num_players, initial_chips),
-          debts_(num_players, 0)
+          initial_chips_(initial_chips)
     {
 		std::cerr << "Starting server with port " << port << std::endl;
         start_accept();
@@ -29,14 +27,12 @@ public:
 
     void broadcast(const std::string &message) override
     {
-        std::cout << message << "\n";
         for (int i = 0; i < num_players_; i++)
             send(i, message);
     }
 
     void send(int i, const std::string &message) override
     {
-		std::cerr << "[send to " <<  sessions_[i]->login_name() << "] " << message << std::endl;
         sessions_[i]->send(message + "\n");
     }
 
@@ -88,25 +84,41 @@ private:
     void start_game()
     {
         std::vector<std::string> names;
-        for (auto &session : sessions_)
-            names.emplace_back(session->login_name());
+        for (auto &session : sessions_) {
+			names.emplace_back(session->login_name());
+			
+			std::cout << "[broadcast] " << names.back() << std::endl;
+			broadcast(names.back());
+		}
+
+		std::cout << "[broadcast] player list end" << std::endl;
+		broadcast("player list end");
+
+		std::cout << "[broadcast] initial chips = " << initial_chips_ << std::endl;
+		{
+			std::ostringstream oss;
+			oss << "initial chips = " << initial_chips_;
+			broadcast(oss.str().c_str());
+		}
+		
+		Game game(*this, names, initial_chips_);
 
         std::vector<int> blinds { 1, 2, 5, 10, 20, 50, 100, 200, 500 };
-        for (int blind : blinds)
+		bool end_game = false;
+        for (int blind : blinds) {
         for (int t = 1; t <= 3; t++)
-        {
-            Game game(*this, names, chips_, blind);
-            game.run();
+			{
+				if (game.run(blind) <= 1) {
+					std::cerr << "fewer than 2 players left, game over" << std::endl;
+					broadcast("game over");
+					end_game = true;
+					break;
+				}
+			}
+			if (end_game) break;
+		}
 
-            for (int player = 0; player < num_players_; player++)
-            {
-                if (chips_[player] == 0)
-                {
-                    chips_[player] = initial_chips_;
-                    debts_[player] += initial_chips_;
-                }
-            }
-        }
+		game.final_stat();
     }
 
     boost::asio::io_service &io_service_;
@@ -114,8 +126,6 @@ private:
     const int num_players_;
     const int initial_chips_;
     std::vector<std::unique_ptr<Session>> sessions_;
-    std::vector<int> chips_;
-    std::vector<int> debts_;
 };
 
 }

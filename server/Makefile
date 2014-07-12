@@ -12,12 +12,13 @@ OBJECTS = $(patsubst %.cpp, %.o, $(wildcard *.cpp))
 HEADERS = $(wildcard *.h)
 
 %.o: %.cpp $(HEADERS)
-	mkdir -p bin/ && $(CXX) $(CFLAGS) -c $< -o bin/$@
+	$(CXX) $(CFLAGS) -c $< -o $@
 
 .PRECIOUS: $(TARGET) $(OBJECTS)
 
 $(TARGET): $(OBJECTS) $(SUNDOWN)
-	cd bin/ && $(CXX) $(OBJECTS) -Wall $(LIBS) -o $@ && cd ..
+	$(CXX) $(OBJECTS) -Wall $(LIBS) -o $@ 
 
 clean:
-	-rm -rf bin
+	-rm *.o
+	-rm ${TARGET}

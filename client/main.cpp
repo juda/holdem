@@ -1,4 +1,4 @@
-#include "IO.h"
+#include "client.h"
 #include <iostream>
 #include <string>
 using namespace std;
@@ -15,29 +15,28 @@ int main(int argc, char** argv)
 	std::cerr << "Starting client with ip " << argv[1]
 			  << " port " << argv[2] << endl;
 
-    IO io(argv[1], argv[2]);
+	try {
+		Client client(argv[1], argv[2]);
 
-	std::string action;
-	std::string message;
-	while (true) {
-		getline(cin, action);
-
-
-		if (action[0] == 'r'){
-			io.receive(message);
-			cout << "[received] " << message << endl;
+		if (!client.isInitialized()) {
+			std::cerr << "[ERROR] Unable to initialize the client." << std::endl;
+			return 1;
 		}
 
-		else if (action[0] == 'e'){
-			cout << "[ending]" << endl;
-			break;
+		while (true) {
+			switch (client.loop()) {
+			case Client::LOOP_MSG_ERROR:
+				return 1;
+			case Client::LOOP_END:
+				return 0;
+			default:
+				// do nothing
+				break;
+			}
 		}
-
-		else {
-			if (action.empty() || action.back() != '\n')
-				action.push_back('\n');
-			io.send(action);
-		}
+	}
+	catch (std::exception& e) {
+		std::cerr << e.what() << std::endl;
 	}
 
 	return 0;

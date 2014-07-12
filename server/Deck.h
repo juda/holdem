@@ -14,10 +14,10 @@ class Deck {
 public:
     Deck()
     {
-        static unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
+        /*static unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
         static std::default_random_engine generator(seed);
 
-        /*for (char suit : std::string("CDHS"))
+        for (char suit : std::string("CDHS"))
 		for (char rank : std::string("23456789TJQKA"))
         {
             Card card;
@@ -28,20 +28,20 @@ public:
 
         std::shuffle(cards.begin(), cards.end(), generator);*/
 
-		std::istringstream iss(_111);
+		/*std::istringstream iss(_111);
 		char r, s;
 		while (iss >> r){
 			iss >> s;
 			cards.emplace_back(Card(r, s));
 		}
 		
-		std::reverse(cards.begin(), cards.end());
+		std::reverse(cards.begin(), cards.end());*/
 
     }
 
     void burn()
     {
-        //cards.pop_back();
+        cards.pop_back();
     }
 
     Card deal()
@@ -50,6 +50,22 @@ public:
         cards.pop_back();
         return card;
     }
+
+	void shuffle() {
+        static unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
+        static std::default_random_engine generator(seed);
+
+        for (char suit : std::string("CDHS"))
+		for (char rank : std::string("23456789TJQKA"))
+        {
+            Card card;
+            card.rank = rank;
+            card.suit = suit;
+            cards.emplace_back(card);
+        }
+
+        std::shuffle(cards.begin(), cards.end(), generator);
+	}
 
 private:
 

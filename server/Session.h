@@ -42,7 +42,6 @@ public:
 
     void receive(std::string &message)
     {
-        boost::asio::streambuf buf;
         boost::asio::read_until(socket_, buf, '\n');
         std::istream is(&buf);
         std::getline(is, message);
@@ -54,14 +53,16 @@ private:
         if (!error)
         {
             std::istream is(&login_buf_);
-            std::string login, name;
-            is >> login >> name;
-            if (login == "login")
+            std::string msg;
+			std::getline(is, msg);
+            
+			if (msg.substr(0, 6) == "login ")
             {
-                login_name_ = name;
+                login_name_ = msg.substr(6, -1);
                 if (login_callback_(this))
                 {
-                    std::cout << "login " << name << "\n";
+                    std::cout << "[login] " << login_name_ << "\n";
+					send("login " + login_name_ + "\n");	// confirmation
                 }
                 else
                 {
@@ -87,6 +88,8 @@ private:
     std::function<bool(Session *)> login_callback_;
     boost::asio::streambuf login_buf_;
     std::string login_name_;
+
+    boost::asio::streambuf buf;
 };
 
 }
