@@ -636,12 +636,22 @@ void Client::decide(const decision_type& decision, const std::string& round_name
 }
 
 typename Client::LOOP_RESULT Client::showdown_loop() {
-	if (receive(0, "start showdown")) {
-		OUTPUT("[SHOWDOWN] showdown starts\n");
-	}
-	else {
-		ERR_OUTPUT("[ERROR] unexpected message, expecting start showdown");
-		return LOOP_MSG_ERROR;
+	{
+		std::string msg;
+		receive(msg);
+
+		if (msg == "declare winner") {
+			return LOOP_END;
+		}
+
+		else if (msg == "start showdown") {
+			OUTPUT("[SHOWDOWN] showdown starts\n");
+		}
+
+		else{
+			ERR_OUTPUT("[ERROR] unexpected message, expecting start showdown\n");
+			return LOOP_MSG_ERROR;
+		}
 	}
 
 	while (true) {
