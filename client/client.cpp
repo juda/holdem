@@ -109,6 +109,8 @@ typename Client::LOOP_RESULT Client::loop() {
 	TEST_LOOP_RESULT(bet_loop(std::bind(&Player::river, &player), "river"))
 #undef TEST_LOOP_RESULT
 
+	clear_single_game_stat();
+
 	// expect showdown
 	if (game_continue) {
 		if (showdown_loop() == LOOP_MSG_ERROR) {
@@ -191,16 +193,16 @@ bool Client::receive_round_init_msgs() {
 	// chips	check
 	std::fill(player_status.begin(), player_status.end(), NOT_ACTIONED);
 	std::fill(current_bets.begin(), current_bets.end(), 0);
-	// all_chips_won_in_last_game	check (reset in receive_winner)
+	// all_chips_won_in_last_game	check (reset in clear_in_single_game_stat)
 	// num_of_participating_players	check (see below)
 	// player_list	check (see below)
 	// out_of_game  check (see below)
 	// dealer	check (see below)
 	bet_sequence.clear();
 	community_cards.clear();
-	hands.clear();
+	//hands		check (reset in clear_single_game_stat)
 	pots.clear();
-	won_chips.clear();
+	//won_chips	check (reset in clear_single_game_stat)
 	// blind	check (see below)
 	// last_raise_amount	check (reset in bet_loop)
 	// hole_cards	check (see below)
@@ -635,6 +637,12 @@ void Client::decide(const decision_type& decision, const std::string& round_name
 	}
 }
 
+void Client::clear_single_game_stat() {
+	hands.clear();
+	won_chips.clear();
+	std::fill(all_chips_won_in_last_game.begin(), all_chips_won_in_last_game.end(), 0);	
+}
+
 typename Client::LOOP_RESULT Client::showdown_loop() {
 	{
 		std::string msg;
@@ -726,7 +734,6 @@ typename Client::LOOP_RESULT Client::showdown_loop() {
 
 typename Client::LOOP_RESULT Client::receive_winner() {
 	
-	std::fill(all_chips_won_in_last_game.begin(), all_chips_won_in_last_game.end(), 0);	
 	for (size_t i = 0; i < pots.size(); ++i) {
 		int pot_id, sharer_cnt;
 		if (!receive(2, "pot %d is shared by %d players", &pot_id, &sharer_cnt) || i != (size_t) pot_id) {
@@ -736,7 +743,13 @@ typename Client::LOOP_RESULT Client::receive_winner() {
 		else {
 			OUTPUT("[GAME STAT] pot %d with %d chips is shared by %d players\n", pot_id, pots[i].amount(), sharer_cnt);
 		}
-
+		
+		const auto& contributors = pots[i].contributors();
+		int amt_per_player = pots[i].amount() / contributors.size();
+		for (int player : contributors) {
+			all_chips_won_in_last_game[player] -= amt_per_player;
+		}
+		
 		std::vector<std::pair<int, int> > pot_chips; 
 		for (int j = 0; j < sharer_cnt; ++j) {
 			int player, num_of_chips;
@@ -762,6 +775,3 @@ typename Client::LOOP_RESULT Client::receive_winner() {
 
 	return LOOP_NORMAL;
 }
-
-
-

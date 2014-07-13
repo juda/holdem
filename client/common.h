@@ -2,6 +2,7 @@
 #define _COMMON_H_
 
 #include <utility>
+#include <array>
 
 enum DECISION_VALUE { CHECK, FOLD, CALL, RAISE };
 typedef std::pair<DECISION_VALUE, int> decision_type;

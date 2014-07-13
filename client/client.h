@@ -43,6 +43,8 @@ private:
 
 	void decide(const decision_type& decision, const std::string& round_name);
 
+	void clear_single_game_stat();
+	
 	LOOP_RESULT showdown_loop();
 
 	LOOP_RESULT receive_winner();

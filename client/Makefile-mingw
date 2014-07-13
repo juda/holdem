@@ -6,7 +6,7 @@
 BOOST_PATH = D:\boost_1_55_0
 AI = example
 
-TARGET = server.exe
+TARGET = client.exe
 LIBS = -lws2_32 -lmswsock -l:libboost_system-mgw48-mt-1_55.a
 CXX = g++
 #CFLAGS = -std=c++11 -Wall -Wextra -g -D_WIN32_WINNT=0x0601 -I${BOOST_PATH}		## use this for debug

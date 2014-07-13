@@ -65,11 +65,11 @@ inline int Query::current_bets(int player) const {
 	return client.current_bets[player];
 }
 
-inline const std::pair<char, char>* Query::hole_cards() const {
+inline const card_type* Query::hole_cards() const {
 	return client.hole_cards;
 }
 
-inline const std::vector<std::pair<char, char> >& Query::community_cards() const {
+inline const std::vector<card_type>& Query::community_cards() const {
 	return client.community_cards;
 }
 

@@ -50,9 +50,9 @@ public:
 
 	int current_bets(int player) const;
 
-	const std::pair<char, char>* hole_cards() const;
+	const card_type* hole_cards() const;
 
-	const std::vector<std::pair<char, char> >& community_cards() const;
+	const std::vector<card_type>& community_cards() const;
 
 	const std::vector<Pot>& pots() const;
 
