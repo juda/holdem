@@ -52,6 +52,8 @@ public:
     }
 
 	void shuffle() {
+		cards.clear();
+
         static unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
         static std::default_random_engine generator(seed);
 
