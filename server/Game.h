@@ -58,29 +58,50 @@ public:
 		
 		++game_cnt;
 
+		std::cerr << std::endl;
 		std::cerr << "game " << game_cnt << " starts" << std::endl;
         broadcast("game starts");
+
+		for (int i = 0; i < n; ++i) {
+			std::cerr << "Player " << i << " has " << chips[i] << " chips." << std::endl;
+		}
+
         broadcast("number of players is %d", num_of_participating_players());
 		{
 			std::ostringstream oss;
-			std::cout << player_list.front();
+			std::cerr << player_list.front();
 			oss << player_list.front();
 			for_each(player_list.begin() + 1, player_list.end(), 
-					[&oss](int player) { std::cout << ' ' << player; oss << ' ' << player; });
-			std::cout << std::endl;
+					[&oss](int player) { std::cerr << ' ' << player; oss << ' ' << player; });
+			std::cerr << std::endl;
 			broadcast(oss.str().c_str());
 		}
 		broadcast("small blind is %d", blind);
 
         broadcast("dealer is %d", dealer);
 
-        chips[small_blind] -= blind;
-        current_bets[small_blind] = blind;
-        broadcast("player %d blind bet %d", small_blind, blind);
+		if (blind > chips[small_blind]) {
+        	current_bets[small_blind] = chips[small_blind];
+			chips[small_blind] = 0;
+		}
 
-        chips[big_blind] -= blind * 2;
-        current_bets[big_blind] = blind * 2;
-        broadcast("player %d blind bet %d", big_blind, blind * 2);
+		else {
+			current_bets[small_blind] = blind;
+			chips[small_blind] -= blind;
+		}
+        broadcast("player %d blind bet %d", small_blind, current_bets[small_blind]);
+
+		if ( blind * 2  > chips[big_blind] ) {
+        	current_bets[big_blind] = chips[big_blind];
+        	chips[big_blind] = 0;
+		}
+
+		else {
+        	current_bets[big_blind] = blind * 2;
+        	chips[big_blind] -= blind * 2;
+		}
+
+        broadcast("player %d blind bet %d", big_blind, current_bets[big_blind]);
 
         for (auto i : player_list)
 		{
