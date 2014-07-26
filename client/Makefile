@@ -3,11 +3,11 @@
 ## You might want to add -O2 to CFLAGS after debug.
 ## Change BOOST_PATH to the location where boost is located
 
-AI = example
+AI = JudaAI
 
 TARGET = client
 LIBS = -lpthread -lboost_system
-CXX = g++
+CXX = clang++
 #CFLAGS = -std=c++11 -Wall -Wextra -g		## use this for debug
 CFLAGS = -std=c++11 -Wall -Wextra -O2 -DNDEBUG
 

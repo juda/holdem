@@ -3,6 +3,7 @@
 
 #include "query.h"
 #include <string>
+#include <vector>
 
 class Player {
 public:
@@ -26,7 +27,7 @@ public:
 
 private:
 	Query query;
-
+	hand_type choose_best(std::vector<card_type>);
 };
 
 

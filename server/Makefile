@@ -5,7 +5,7 @@
 
 TARGET = server
 LIBS = -lpthread -lboost_system
-CXX = g++
+CXX = clang++
 #CFLAGS = -std=c++11 -Wall -Wextra -g		## use this for debug
 CFLAGS = -std=c++11 -Wall -Wextra -O2 -DNDEBUG
 
