@@ -716,9 +716,15 @@ private:
                 else if (amount > 0 && actual_bet > previous_bet)
                 {
                     std::cerr << "player " << name_of(player) << " raises\n";
-                    last_raiser = player;
-					last_raise_amount = std::max(last_raise_amount, actual_bet - previous_bet);
+                    if (actual_bet - previous_bet >= last_raise_amount) {
+						last_raise_amount = actual_bet - previous_bet;
+						last_raiser = player;
+					}
                 }
+				else if (amount == 0) {
+					if (last_raiser == -1)
+						last_raiser = player;
+				}
 
                 broadcast("player %d bets %d", player, amount);
             }
