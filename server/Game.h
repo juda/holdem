@@ -109,7 +109,7 @@ public:
             send(i, "hole card %c %c", hole_cards[i][0].rank, hole_cards[i][0].suit);
         }
 
-        for (int i = 0; i < n; i++)
+        for (auto i : player_list)
         {
             hole_cards[i][1] = deck.deal();
             send(i, "hole card %c %c", hole_cards[i][1].rank, hole_cards[i][1].suit);
@@ -515,13 +515,14 @@ private:
         // 1. 每个人都说过话
         // 2. 所有人下注相同，或者all-in
         // 3. 不能再raise了
-
+		
+		int max_chip = 0;
         for (;;)
         {
 			int current_player = player_list[now_player];
 			now_player = (now_player + 1) % player_list.size();
 
-            if (all_players_actioned() && all_bet_amounts_are_equal() && there_is_no_possible_raise(current_player))
+            if (all_players_actioned() && all_bet_amounts_are_equal() && (there_is_no_possible_raise(current_player) || max_chip == 0))
                 break;
 
             if (folded[current_player])
@@ -530,6 +531,7 @@ private:
             }
 
             std::cerr << "current player is " << name_of(current_player) << "\n";
+			max_chip = std::max(max_chip, chips[current_player]);
 
             int amount = get_bet_from(current_player);
 			if (amount == -2) {
@@ -899,12 +901,12 @@ private:
         for (auto player : player_list)
         {
             if (!folded[player] && chips[player] != 0 && amt != current_bets[player]) {
-				std::cerr << "all_bet_amounts_are_equal returns false because amt = " << amt
-					<< " but player " << name_of(player) << " only bets " << current_bets[player] << std::endl;
+		//		std::cerr << "all_bet_amounts_are_equal returns false because amt = " << amt
+		//			<< " but player " << name_of(player) << " only bets " << current_bets[player] << std::endl;
 				return false;
 			}
         }
-        std::cerr << "all_bet_amounts_are_equal returns true, amt =" << amt << "\n";
+        //std::cerr << "all_bet_amounts_are_equal returns true, amt =" << amt << "\n";
         return true;
     }
 
