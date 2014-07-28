@@ -2,6 +2,7 @@
 #include <iostream>
 #include <functional>
 #include <string>
+#include <sstream>
 #include <boost/asio.hpp>
 #include <boost/bind.hpp>
 #include <boost/optional.hpp>
@@ -9,6 +10,12 @@
 namespace holdem {
 
 using boost::asio::ip::tcp;
+
+inline std::string my_to_string(int value) {
+	std::ostringstream oss;
+	oss << value;
+	return oss.str();
+}
 
 class Session {
 public:
