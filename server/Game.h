@@ -505,7 +505,7 @@ private:
 
         // 上一个raise的玩家，不算大小盲
         last_raiser = -1;
-		last_raise_amount = blind >> 1;
+		last_raise_amount = blind << 1;
 
         for (int player = 0; player < n; player++)
             actioned[player] = checked[player] = false;
@@ -717,6 +717,7 @@ private:
                 {
                     std::cerr << "player " << name_of(player) << " raises\n";
                     last_raiser = player;
+					last_raise_amount = std::max(last_raise_amount, actual_bet - previous_bet);
                 }
 
                 broadcast("player %d bets %d", player, amount);
