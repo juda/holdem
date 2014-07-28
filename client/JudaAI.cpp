@@ -224,10 +224,10 @@ decision_type Player::flop()
 	{
 		if(credit>=3000)
 		{
-			return make_decision(RAISE,Extra::Rand()%query.chips(query.my_id())+1);
+			return make_decision(CALL);
 		}else
 		{
-			return make_decision(RAISE,1);
+			return make_decision(CALL);
 		}
 	}else
 	{
@@ -246,10 +246,10 @@ decision_type Player::turn()
 	{
 		if(credit>=3500)
 		{
-			return make_decision(RAISE,Extra::Rand()%query.chips(query.my_id())+1);
+			return make_decision(CALL);
 		}else
 		{
-			return make_decision(RAISE,1);
+			return make_decision(CALL);
 		}
 	}else
 	{
@@ -268,10 +268,10 @@ decision_type Player::river()
 	{
 		if(credit>=5000)
 		{
-			return make_decision(RAISE,query.chips(query.my_id()));
+			return make_decision(CALL);
 		}else
 		{
-			return make_decision(RAISE,1);
+			return make_decision(CALL);
 		}
 	}else
 	{
