@@ -65,7 +65,7 @@ private:
             
 			if (msg.substr(0, 6) == "login ")
             {
-                login_name_ = msg.substr(6, -1) + "_" + std::to_string(player_num++);
+                login_name_ = msg.substr(6, -1) + "_" + my_to_string(player_num++);
                 if (login_callback_(this))
                 {
                     std::cout << "[login] " << login_name_ << "\n";
