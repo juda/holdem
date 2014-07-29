@@ -118,6 +118,11 @@ private:
 			if (end_game) break;
 		}
 
+		if (!end_game) {
+			std::cerr << "maximum number of games reached" << std::endl;
+			broadcast("game over");
+		}
+
 		game.final_stat();
     }
 

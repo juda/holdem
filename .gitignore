@@ -5,4 +5,5 @@ server/server
 *.log
 *.exe
 doc/
+*.zip
 
