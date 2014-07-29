@@ -68,7 +68,7 @@ private:
                 login_name_ = msg.substr(6, -1) + "_" + my_to_string(player_num++);
                 if (login_callback_(this))
                 {
-                    std::cout << "[login] " << login_name_ << "\n";
+                    std::cout << "[login] " << login_name_ << std::endl;
 					send("login " + login_name_ + "\n");	// confirmation
                 }
                 else

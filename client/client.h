@@ -25,6 +25,7 @@ public:
 	
 	LOOP_RESULT loop();
 
+	void show_final_stat();
 private:
 
 	int send(const char* fmt, ...);

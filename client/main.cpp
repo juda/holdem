@@ -26,8 +26,10 @@ int main(int argc, char** argv)
 		while (true) {
 			switch (client.loop()) {
 			case Client::LOOP_MSG_ERROR:
+				client.show_final_stat();
 				return 1;
 			case Client::LOOP_END:
+				client.show_final_stat();
 				return 0;
 			default:
 				// do nothing

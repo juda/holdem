@@ -775,3 +775,11 @@ typename Client::LOOP_RESULT Client::receive_winner() {
 
 	return LOOP_NORMAL;
 }
+
+void Client::show_final_stat() {
+	OUTPUT("[FINAL STAT] chips\n");
+	
+	for (size_t i = 0; i < names.size(); ++i) {
+		OUTPUT("[FINAL STAT] %s has %d chips\n", names[i].c_str(), chips[i]);
+	}
+}

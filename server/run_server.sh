@@ -1,3 +1,3 @@
 #!/bin/bash
 
-./server 12345 3 10 2>&1 | tee run.log
+./server 12345 5 5000 2>&1 | tee run.log
