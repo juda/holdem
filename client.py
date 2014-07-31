@@ -17,6 +17,14 @@ class info:
         		self.current_bets[i]=0
         		self.current_players[i]=0
         		self.current_money[i]=0
+
+        def recieve(self):
+        	res=''
+        	while True:
+        		temp=info.client.recv(1)
+        		if temp=='\n':
+        			return res
+        		res+=temp
     
 class Card:
         numbers='23456789TJQKA'
@@ -98,64 +106,65 @@ def Connect(name):
     print 'login successful!'
 
 def GameInit():
-	realname=info.client.recv(1024).split()[1]
-    while True:
-        name=info.client.recv(1024).split()
-        print name
-        if name==['player','list','end']:
-        	break
-        if name[0]==realname:
-        	query.my_id=len(query.names)
-        query.names.append(name[0])
-        query.current_money.append(0)
-        query.current_bets.append(0)
-        query.current_players.append(0)
-    n=len(query.names)
-    money=int(info.client.recv(1024).split()[3])
-    for i in xrange(n):
-        query.current_money[i]=money
+	realname=query.recieve().split()[1]
+	print realname
+	while True:
+		name=query.recieve().split()
+		print name
+		if name==['player','list','end']:
+			break
+		if name[0]==realname:
+			query.my_id=len(query.names)
+		query.names.append(name[0])
+		query.current_money.append(0)
+		query.current_bets.append(0)
+		query.current_players.append(0)
+	n=len(query.names)
+	money=int(query.recieve().split()[3])
+	for i in xrange(n):
+	    query.current_money[i]=money
 
 def GameBegin():
 	query.clear()
 	query.number_of_pots=2
-	info.client.recv(1024)
-	query.number_of_participants=int(info.client.recv(1024).split()[4])
-	query.current_players=map(int,info.client.recv(1024).split())
+	query.recieve()
+	query.number_of_participants=int(query.recieve().split()[4])
+	query.current_players=map(int,query.recieve().split())
 
-	query.blind=int(info.client.recv(1024).split()[3])
+	query.blind=int(query.recieve().split()[3])
 
-	query.dealer=int(info.client.recv(1024).split()[2])
+	query.dealer=int(query.recieve().split()[2])
 	location=query.current_players.index(query.dealer)
 	location+=1
 	if location>=members:
 		location-=members
-	query.current_bets[location]=int(info.client.recv(1024).split()[4])
+	query.current_bets[location]=int(query.recieve().split()[4])
 	query.current_pot=query.current_bets[location]
 
 	location+=1
 	if location>=members:
 		location-=members
-	query.current_bets[location]=int(info.client.recv(1024).split()[4])
+	query.current_bets[location]=int(query.recieve().split()[4])
 
 	query.current_pot=max(query.current_bets[location],query.current_pot)
 	query.up=0
-	card1,card2=info.client.recv(1024).split()[2:]
+	card1,card2=query.recieve().split()[2:]
 	query.mycards.append('%s%s'%(card1,card2))
-	card1,card2=info.client.recv(1024).split()[2:]
+	card1,card2=query.recieve().split()[2:]
 	query.mycards.append('%s%s'%(card1,card2))
 	firstTurn()
 
 def firstTurn():
 	print 'preflop'
-	info.client.recv(1024)
+	query.recieve()
 	members=len(query.current_players)
 	for i in members:
-		command=info.client.recv(1024).split()
+		command=query.recieve().split()
 		print command
 		query.current_money[int(command[1])]=int(command[3])
 
 	while True:
-		command=info.client.recv(1024).split()
+		command=query.recieve().split()
 		print command
 		if command[0]=='action':
 			if info.current_bets[info.my_id]>0:
@@ -187,15 +196,16 @@ def firstTurn():
 		declareWinner()
 	else:
 		for i in xrange(3):
-			card1,card2=info.client.recv(1024).split()[2:]
+			card1,card2=query.recieve().split()[2:]
 			query.mycards.append('%s%s'%(card1,card2))
 		secondTurn()
 
 def secondTurn():
-	info.client.recv(1024)
+	print 'flop'
+	query.recieve()
 	members=len(query.current_players)
 	for i in members:
-		command=info.client.recv(1024).split()
+		command=query.recieve().split()
 		query.current_money[int(command[1])]=int(command[3])
 
 	query.current_pot=0
@@ -204,7 +214,7 @@ def secondTurn():
 		query.current_bets[i]=0
 
 	while True:
-		command=info.client.recv(1024).split()
+		command=query.recieve().split()
 		if command[0]=='action':
 			if query.current_pot==0:
 				if query.current_money[query.my_id]>0:
@@ -249,15 +259,16 @@ def secondTurn():
 	if query.number_of_participants==1:
 		declareWinner()
 	else:
-		card1,card2=info.client.recv(1024).split()[2:]
+		card1,card2=query.recieve().split()[2:]
 		query.mycards.append('%s%s'%(card1,card2))
 		thirdTurn()
 
 def thirdTurn():
-	info.client.recv(1024)
+	print 'turn'
+	query.recieve()
 	members=len(query.current_players)
 	for i in members:
-		command=info.client.recv(1024).split()
+		command=query.recieve().split()
 		query.current_money[int(command[1])]=int(command[3])
 
 	query.current_pot=0
@@ -266,7 +277,7 @@ def thirdTurn():
 		query.current_bets[i]=0
 
 	while True:
-		command=info.client.recv(1024).split()
+		command=query.recieve().split()
 		if command[0]=='action':
 			if query.current_pot==0:
 				if query.current_money[query.my_id]>0:
@@ -313,15 +324,16 @@ def thirdTurn():
 	if query.number_of_participants==1:
 		declareWinner()
 	else:
-		card1,card2=info.client.recv(1024).split()[2:]
+		card1,card2=query.recieve().split()[2:]
 		query.mycards.append('%s%s'%(card1,card2))
 		forthTurn()
 
 def forthTurn():
-	info.client.recv(1024)
+	print 'river'
+	query.recieve()
 	members=len(query.current_players)
 	for i in members:
-		command=info.client.recv(1024).split()
+		command=query.recieve().split()
 		query.current_money[int(command[1])]=int(command[3])
 
 	query.current_pot=0
@@ -330,7 +342,7 @@ def forthTurn():
 		query.current_bets[i]=0
 
 	while True:
-		command=info.client.recv(1024).split()
+		command=query.recieve().split()
 		if command[0]=='action':
 			if query.current_pot==0:
 				if query.current_money[query.my_id]>0:
@@ -383,23 +395,24 @@ def forthTurn():
 		declareWinner()
 
 def showdown():
-	info.client.recv(1024)
-	info.client.recv(1024)
+	query.recieve()
+	query.recieve()
 	card=Card()
 	card=card.chooseBest(query.mycards)[1]
 	res=''
 	for i in card:
 		res+='%c %c'%(i[0],i[1])
 	res+='\n'
+	print 'showdonw %s'%res
 	info.client.send(res)
 	for i in query.number_of_participants:
-		info.client.recv(1024)
+		query.recieve()
 
 def declareWinner():
 	for i in query.number_of_pots:
-		members=int(info.client.recv(1024).split()[5])
+		members=int(query.recieve().split()[5])
 		for j in xrange(members):
-			command=info.client.recv(1024).split()
+			command=query.recieve().split()
 			query.current_money[int(command[1])]+=int(command[3])
 
 if __name__=='__main__':
@@ -408,6 +421,6 @@ if __name__=='__main__':
     query=info()
     Connect('Juda')
     GameInit()
-    while info.client.recv(1024)!='Game Over':
+    while query.recieve()!='Game Over':
     	GameBegin()
 
