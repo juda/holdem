@@ -83,6 +83,7 @@ private:
 
     void start_game()
     {
+		std::cerr << "GAMES " << Session::game_num << " starts" << std::endl;
         std::vector<std::string> names;
         for (auto &session : sessions_) {
 			names.emplace_back(session->login_name());
@@ -124,7 +125,13 @@ private:
 		}
 
 		game.final_stat();
-    }
+
+		Session::game_num++;
+		Session::player_num = 0;
+    	sessions_.clear();
+
+		std::cerr << std::endl;
+	}
 
     boost::asio::io_service &io_service_;
     tcp::acceptor acceptor_;
