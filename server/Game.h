@@ -587,7 +587,7 @@ private:
 				for (int player : pot.contributors()) {
 					oss << " " << player;
 				}
-				broadcast("pot %d has %d chips contributed by%s", pots.size(), pot.amount(), oss.str().c_str());
+				broadcast("pot %d has %d chips contributed by%s", pots.size() - 1, pot.amount(), oss.str().c_str());
 			}
 		}
 
