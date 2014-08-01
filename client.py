@@ -10,6 +10,7 @@ class info:
         	self.mycards=[]
         	self.current_money=[]
         	self.names=[]
+        	self.my_id=0
 
         def clear(self):
         	self.mycards=[]
@@ -23,6 +24,7 @@ class info:
         	while True:
         		temp=info.client.recv(1)
         		if temp=='\n':
+        			print res
         			return res
         		res+=temp
     
@@ -38,11 +40,12 @@ class Card:
                 four=[0 for i in xrange(5)]
                 color=None
                 for i in cards:
-                    hand.append(card.numbers.index(i[0]))
-                    if color==None:
-                            color=i[1]
-                    if color!=i[1]:
-                            flush=0
+                	temp=Card.numbers.index(i[0])
+                	hand.append(temp)
+                	if color==None:
+                		color=i[1]
+                	if color!=i[1]:
+                		flush=0
                 sorted(hand)
                 for i in hand:
                         five[i]+=1
@@ -63,7 +66,7 @@ class Card:
                 	return (8,four[4]*100+four[1])
                 if four[3]>0  and four[2]>0:
                 	return (7,four[3]*100+four[2])
-                if fluse==1:
+                if flush==1:
                 	return (6,four[1])
                 if straight==1:
                 	return (5,big)
@@ -77,6 +80,7 @@ class Card:
 
         def chooseBest(self,cards):
                 n=len(cards)
+                print '[card:]',cards
                 now=(0,0)
                 best=None
                 for i1 in xrange(n):
@@ -84,7 +88,7 @@ class Card:
                                 for i3 in xrange(i2+1,n):
                                         for i4 in xrange(i3+1,n):
                                                 for i5 in xrange(i4+1,n):
-                                                        hand=(i1,i2,i3,i4,i5)
+                                                        hand=(cards[i1],cards[i2],cards[i3],cards[i4],cards[i5])
                                                         score=self.calcCards(hand)
                                                         if score[0]>now[0] or (score[0]==now[0] and score[1]>now[1]):
                                                                 now=score
@@ -109,11 +113,10 @@ def GameInit():
 	realname=query.recieve().split()[1]
 	print realname
 	while True:
-		name=query.recieve().split()
-		print name
-		if name==['player','list','end']:
+		name=query.recieve().rstrip()
+		if name=='player list end':
 			break
-		if name[0]==realname:
+		if name==realname:
 			query.my_id=len(query.names)
 		query.names.append(name[0])
 		query.current_money.append(0)
@@ -126,14 +129,15 @@ def GameInit():
 
 def GameBegin():
 	query.clear()
-	query.number_of_pots=2
-	query.recieve()
-	query.number_of_participants=int(query.recieve().split()[4])
+	query.number_of_pots=1
+	temp=query.recieve().split()
+	query.number_of_participants=int(temp[4])
 	query.current_players=map(int,query.recieve().split())
-
 	query.blind=int(query.recieve().split()[3])
 
 	query.dealer=int(query.recieve().split()[2])
+	members=query.number_of_participants
+
 	location=query.current_players.index(query.dealer)
 	location+=1
 	if location>=members:
@@ -141,6 +145,7 @@ def GameBegin():
 	query.current_bets[location]=int(query.recieve().split()[4])
 	query.current_pot=query.current_bets[location]
 
+	
 	location+=1
 	if location>=members:
 		location-=members
@@ -155,24 +160,22 @@ def GameBegin():
 	firstTurn()
 
 def firstTurn():
-	print 'preflop'
+	print '[preflop]'
 	query.recieve()
 	members=len(query.current_players)
-	for i in members:
+	for i in xrange(members):
 		command=query.recieve().split()
-		print command
 		query.current_money[int(command[1])]=int(command[3])
 
 	while True:
 		command=query.recieve().split()
-		print command
 		if command[0]=='action':
-			if info.current_bets[info.my_id]>0:
-				tmep=min(query.current_pot-query.current_bets[query.my_id],query.current_money[query.my_id])
+			if query.current_bets[query.my_id]>0:
+				temp=min(query.current_pot-query.current_bets[query.my_id],query.current_money[query.my_id])
 				info.client.send('bet %d\n'%temp)
 			else:
 				if query.mycards[0][0]==query.mycards[1][0] or query.mycards[0][1]==query.mycards[1][1]:
-					tmep=min(query.current_pot-query.current_bets[query.my_id],query.current_money[query.my_id])
+					temp=min(query.current_pot-query.current_bets[query.my_id],query.current_money[query.my_id])
 					info.client.send('bet %d\n'%temp)
 				else:
 					info.client.send('fold\n')
@@ -186,9 +189,9 @@ def firstTurn():
 				temp=int(command[3])
 				query.current_money[member]-=temp
 				query.current_bets[member]+=temp
-				if query.current_bets[mycards]>query.current_pot:
-					query.up=query.current_bets[mycards]-query.current_pot
-					query.current_pot=query.current_bets[mycards]
+				if query.current_bets[member]>query.current_pot:
+					query.up=query.current_bets[member]-query.current_pot
+					query.current_pot=query.current_bets[member]
 		elif command[0]=='pot':
 			pass
 
@@ -201,10 +204,10 @@ def firstTurn():
 		secondTurn()
 
 def secondTurn():
-	print 'flop'
+	print '[flop]'
 	query.recieve()
 	members=len(query.current_players)
-	for i in members:
+	for i in xrange(members):
 		command=query.recieve().split()
 		query.current_money[int(command[1])]=int(command[3])
 
@@ -248,9 +251,9 @@ def secondTurn():
 				temp=int(command[3])
 				query.current_money[member]-=temp
 				query.current_bets[member]+=temp
-				if query.current_bets[mycards]>query.current_pot:
-					query.up=query.current_bets[mycards]-query.current_pot
-					query.current_pot=query.current_bets[mycards]
+				if query.current_bets[member]>query.current_pot:
+					query.up=query.current_bets[member]-query.current_pot
+					query.current_pot=query.current_bets[member]
 			elif command[2]=='checks':
 				pass
 		elif command[0]=='pot':
@@ -264,10 +267,10 @@ def secondTurn():
 		thirdTurn()
 
 def thirdTurn():
-	print 'turn'
+	print '[turn]'
 	query.recieve()
 	members=len(query.current_players)
-	for i in members:
+	for i in xrange(members):
 		command=query.recieve().split()
 		query.current_money[int(command[1])]=int(command[3])
 
@@ -313,9 +316,9 @@ def thirdTurn():
 				temp=int(command[3])
 				query.current_money[member]-=temp
 				query.current_bets[member]+=temp
-				if query.current_bets[mycards]>query.current_pot:
-					query.up=query.current_bets[mycards]-query.current_pot
-					query.current_pot=query.current_bets[mycards]
+				if query.current_bets[member]>query.current_pot:
+					query.up=query.current_bets[member]-query.current_pot
+					query.current_pot=query.current_bets[member]
 			elif command[2]=='checks':
 				pass
 		elif command[0]=='pot':
@@ -329,10 +332,10 @@ def thirdTurn():
 		forthTurn()
 
 def forthTurn():
-	print 'river'
+	print '[river]'
 	query.recieve()
 	members=len(query.current_players)
-	for i in members:
+	for i in xrange(members):
 		command=query.recieve().split()
 		query.current_money[int(command[1])]=int(command[3])
 
@@ -380,9 +383,9 @@ def forthTurn():
 				temp=int(command[3])
 				query.current_money[member]-=temp
 				query.current_bets[member]+=temp
-				if query.current_bets[mycards]>query.current_pot:
-					query.up=query.current_bets[mycards]-query.current_pot
-					query.current_pot=query.current_bets[mycards]
+				if query.current_bets[member]>query.current_pot:
+					query.up=query.current_bets[member]-query.current_pot
+					query.current_pot=query.current_bets[member]
 			elif command[2]=='checks':
 				pass
 		elif command[0]=='pot':
@@ -396,21 +399,26 @@ def forthTurn():
 
 def showdown():
 	query.recieve()
-	query.recieve()
 	card=Card()
 	card=card.chooseBest(query.mycards)[1]
 	res=''
 	for i in card:
-		res+='%c %c'%(i[0],i[1])
+		res+='%c%c '%(i[0],i[1])
 	res+='\n'
-	print 'showdonw %s'%res
+	print '[showdown] %s'%res
 	info.client.send(res)
-	for i in query.number_of_participants:
+	for i in xrange(query.number_of_participants):
 		query.recieve()
 
 def declareWinner():
-	for i in query.number_of_pots:
-		members=int(query.recieve().split()[5])
+	query.recieve()
+	while True:
+		command=query.recieve().split()
+		if command[0]=='game':
+			if command[1]=='over':
+				exit(0)
+			return
+		members=int(command[5])
 		for j in xrange(members):
 			command=query.recieve().split()
 			query.current_money[int(command[1])]+=int(command[3])
@@ -421,6 +429,7 @@ if __name__=='__main__':
     query=info()
     Connect('Juda')
     GameInit()
-    while query.recieve()!='Game Over':
+    query.recieve()
+    while True:
     	GameBegin()
 
