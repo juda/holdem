@@ -1,5 +1,6 @@
 #pragma once
 #include <vector>
+#include <algorithm>
 
 namespace holdem {
 
@@ -27,6 +28,19 @@ public:
     {
 		return m;
     }
+
+	bool merge(const Pot& pot) {
+		assert(std::is_sorted(m.begin(), m.end()));
+		assert(std::is_sorted(pot.m.begin(), pot.m.end()));
+
+		if (m.size() == pot.m.size() && std::equal(m.begin(), m.end(), pot.m.begin())) {
+			chips += pot.chips;
+
+			return true;
+		}
+
+		return false;
+	}
 
 private:
 	std::vector<int> m;

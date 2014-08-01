@@ -6,6 +6,7 @@
 #include <boost/asio.hpp>
 #include <boost/bind.hpp>
 #include <boost/optional.hpp>
+#include "log.h"
 
 namespace holdem {
 
@@ -57,6 +58,8 @@ public:
 private:
     void handle_login(const boost::system::error_code &error)
     {
+		Log& log = Log::get_instance();
+
         if (!error)
         {
             std::istream is(&login_buf_);
@@ -68,24 +71,24 @@ private:
                 login_name_ = msg.substr(6, -1) + "_" + my_to_string(game_num) + "_" + my_to_string(player_num++);
                 if (login_callback_(this))
                 {
-                    std::cout << "[login] " << login_name_ << std::endl;
+                    log.out() << "[login] " << login_name_ << std::endl;
 					send("login " + login_name_ + "\n");	// confirmation
                 }
                 else
                 {
-                    std::cerr << "Session handle_login: game is full\n";
+                    log.err() << "Session handle_login: game is full" << std::endl;;
                     delete this;
                 }
             }
             else
             {
-                std::cerr << "Session handle_login: login command expected\n";
+                log.err() << "Session handle_login: login command expected" << std::endl;
                 delete this;
             }
         }
         else
         {
-            std::cerr << "Session handle_login error: " << error.message() << "\n";
+            log.err() << "Session handle_login error: " << error.message() << std::endl;
             delete this;
         }
     }

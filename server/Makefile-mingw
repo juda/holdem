@@ -9,7 +9,7 @@ TARGET = server.exe
 LIBS = -lws2_32 -lmswsock -l:libboost_system-mgw48-mt-1_55.a
 CXX = g++
 #CFLAGS = -std=c++11 -Wall -Wextra -g -D_WIN32_WINNT=0x0601 -I${BOOST_PATH}		## use this for debug
-CFLAGS = -std=c++11 -Wall -Wextra -O2 -DNDEBUG -D_WIN32_WINNT=0x0601 -I${BOOST_PATH}
+CFLAGS = -std=c++11 -O2 -DNDEBUG -D_WIN32_WINNT=0x0601 -I${BOOST_PATH}
 LIB_PATH = -L${BOOST_PATH}\stage\lib
 
 .PHONY: default all clean

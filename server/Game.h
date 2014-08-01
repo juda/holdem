@@ -14,6 +14,7 @@
 #include "Deck.h"
 #include "IO.h"
 #include "Pot.h"
+#include "log.h"
 
 namespace holdem {
 
@@ -46,7 +47,7 @@ const char* HAND_STRING[11] = {
 class Game {
 public:
     Game(IO &io, const std::vector<std::string> &names, int init_chips)
-        : io(io), names(names), chips(names.size(), init_chips), blind(1), n(names.size()), dealer(n-1), hole_cards(n), current_bets(n), actioned(n, false), checked(n, false), folded(n, false), game_cnt(0)
+        : io(io), names(names), chips(names.size(), init_chips), blind(1), n(names.size()), dealer(n-1), hole_cards(n), current_bets(n), actioned(n, false), checked(n, false), folded(n, false), game_cnt(0), log(Log::get_instance())
     {
     }
 
@@ -57,27 +58,31 @@ public:
 		}
 		
 		++game_cnt;
-
-		std::cerr << std::endl;
-		std::cerr << "game " << game_cnt << " starts" << std::endl;
+		
+		log.detailed_out() << std::endl << ">=========================================>" << std::endl;
+		log.out() << "[GAME " << game_cnt << "] starts" << std::endl;
         broadcast("game starts");
 
 		for (int i = 0; i < n; ++i) {
-			std::cerr << "Player " << i << " has " << chips[i] << " chips." << std::endl;
+			log.detailed_out() << "[GAME INFO] Player " << name_of(i) << " has " << chips[i] << " chips." << std::endl;
 		}
 
+		log.detailed_out() << "[GAME INFO] number of players is " << num_of_participating_players() << std::endl;
         broadcast("number of players is %d", num_of_participating_players());
 		{
 			std::ostringstream oss;
-			std::cerr << player_list.front();
+			log.detailed_out() << "[GAME INFO] " << name_of(player_list.front()) << std::endl;
 			oss << player_list.front();
 			for_each(player_list.begin() + 1, player_list.end(), 
-					[&oss](int player) { std::cerr << ' ' << player; oss << ' ' << player; });
-			std::cerr << std::endl;
+					[&oss, this](int player) { log.detailed_out() << "[GAME INFO] " << name_of(player) << std::endl; 
+												oss << ' ' << player; });
 			broadcast(oss.str().c_str());
 		}
+
+		log.detailed_out() << "[GAME INFO] small blind is " << blind << std::endl;
 		broadcast("small blind is %d", blind);
 
+		log.detailed_out() << "[GAME INFO] dealer is " << dealer << std::endl;
         broadcast("dealer is %d", dealer);
 
 		if (blind > chips[small_blind]) {
@@ -89,6 +94,8 @@ public:
 			current_bets[small_blind] = blind;
 			chips[small_blind] -= blind;
 		}
+
+		log.detailed_out() << "[GAME INFO] player " << name_of(small_blind) << " blind bets " << current_bets[small_blind] << std::endl;
         broadcast("player %d blind bet %d", small_blind, current_bets[small_blind]);
 
 		if ( blind * 2  > chips[big_blind] ) {
@@ -101,6 +108,7 @@ public:
         	chips[big_blind] -= blind * 2;
 		}
 
+		log.detailed_out() << "[GAME INFO] player " << name_of(big_blind) << " blind bets " << current_bets[big_blind] << std::endl;
         broadcast("player %d blind bet %d", big_blind, current_bets[big_blind]);
 
         for (auto i : player_list)
@@ -113,12 +121,18 @@ public:
         {
             hole_cards[i][1] = deck.deal();
             send(i, "hole card %c %c", hole_cards[i][1].rank, hole_cards[i][1].suit);
-        }
+        	
+			log.detailed_out() << "[HOLE CARD for " << name_of(i) << "] " 
+					  << suit_of(hole_cards[i][0].suit) << ' ' << rank_of(hole_cards[i][0].rank) << ' '
+					  << suit_of(hole_cards[i][1].suit) << ' ' << rank_of(hole_cards[i][1].rank) << std::endl;
+		}
 
         // pre-flop betting round (0 community cards dealt)
+		round_name = "[PREFLOP] ";
         if (bet_loop())
         {
             // flop betting round (3 community cards dealt)
+			round_name = "[FLOP] ";
             deck.burn();
             deal_community_card("flop");
             deal_community_card("flop");
@@ -127,12 +141,14 @@ public:
             if (bet_loop())
             {
                 // turn betting round (4 community cards dealt)
-                deck.burn();
+                round_name = "[TURN] ";
+				deck.burn();
                 deal_community_card("turn");
 
                 if (bet_loop())
                 {
                     // river betting round (5 community cards dealty)
+					round_name = "[RIVER] ";
                     deck.burn();
                     deal_community_card("river");
 
@@ -146,28 +162,31 @@ public:
         }
 		
 		// all but one fold
-
+	
+		int the_unfolded;
 		std::vector<int> winner_list(n);
 		for (auto player : player_list) {
 			if (!folded[player]) {
 				winner_list[player] = HAND_ROYAL_FLUSH;
+				the_unfolded = player;
 			}
 			else {
 				winner_list[player] = HAND_INVALID;
 			}
 		}
 		
+		log.detailed_out() <<  "[GAME STAT] all but " << name_of(the_unfolded) << " fold" << std::endl;
 		declare_winner(winner_list);
 		return num_of_participating_players();
     }
 
 	void final_stat() {
-		std::cerr << "final statistics: " << std::endl;
-		std::cerr << "total games: " << game_cnt << std::endl;
+		log.detailed_out() << std::endl << ">=========================================>" << std::endl;
+		log.out() << "[FINAL STAT] total games: " << game_cnt << std::endl;
 
-		std::cerr << "final chips: " << std::endl;
+		log.out() << "[FINAL STAT] final chips: " << std::endl;
 		for (int i = 0; i < n; ++i) {
-			std::cerr << names[i] << " has " << chips[i] << " chips" << std::endl;
+			log.out() << "[FINAL STAT] player" << names[i] << " has " << chips[i] << " chips" << std::endl;
 		}
 	}
 
@@ -177,7 +196,7 @@ private:
 
     void showdown()
     {
-		std::cerr << "start showdown" << std::endl;
+		log.detailed_out() << "[SHOWDOWN] start showdown" << std::endl;
 		broadcast("start showdown");
 
 		std::vector<std::pair<std::array<Card, 5>, int>> hands(n);
@@ -209,7 +228,6 @@ private:
 
         // check validity of hands
 		
-		std::cerr << "checking validity and type of hands" << std::endl;
 		std::vector<std::pair<ranking_t, int> > ranking; 
 
 		for (auto player : player_list) {
@@ -221,7 +239,6 @@ private:
 		
 		// compare and win pots
 
-		std::cerr << "Comparing hands" << std::endl;
 		sort(ranking.begin(), ranking.end(), 
 				[](const std::pair<ranking_t, int>& lhs, const std::pair<ranking_t, int>& rhs) -> bool{
 					return std::lexicographical_compare(rhs.first.begin(), rhs.first.end(), lhs.first.begin(), lhs.first.end());
@@ -230,20 +247,19 @@ private:
 		// broadcast showdown result
 		std::vector<int> winner_list(n);
 		int rank_num = n;
-		std::cerr << "broadcasting showdown result" << std::endl;
 		for (size_t k = 0; k < ranking.size(); ++k) {
 			const auto& rank_id = ranking[k];
 			int player = rank_id.second;
 			
 			std::ostringstream oss;
-			std::cerr << "player " << name_of(player) << " shows";
+			log.detailed_out() << "player " << name_of(player) << " shows";
 			oss << "player " << player << " shows";
 
 			for (int i = 0; i < 5; ++i) {
-				std::cerr << ' ' << rank_of(hands[player].first[i].rank) << ' ' << suit_of(hands[player].first[i].suit);
+				log.detailed_out() << ' ' << rank_of(hands[player].first[i].rank) << ' ' << suit_of(hands[player].first[i].suit);
 				oss << ' ' << hands[player].first[i].rank << ' ' << hands[player].first[i].suit;
 			}
-			std::cerr << ", which is " << HAND_STRING[rank_id.first.front()] << '.' << std::endl;
+			log.detailed_out() << ", which is " << HAND_STRING[rank_id.first.front()] << '.' << std::endl;
 			oss << ", which is " << rank_id.first.front();
 			broadcast(oss.str().c_str());
 
@@ -260,13 +276,8 @@ private:
 
 	void declare_winner(const std::vector<int>& winner_list) {
 
-		std::cerr << "declare winner" << std::endl;
+		log.detailed_out() << "[GAME STAT] declare winner" << std::endl;
 		broadcast("declare winner");
-
-		/*std::cerr << "rank of player: " << std::endl;
-		for (int i : player_list) {
-			std::cerr << "player " << name_of(i) << " : " << winner_list[i] << std::endl;
-		}*/
 
 		int pot_num = 0;
 		for (const auto& pot : pots) {
@@ -298,12 +309,12 @@ private:
 			}
 			rank_num[the_lucky_guy].first += remaining_part;	// the one who is closest to the dealer (clock-wise) gets the remaining part
 
-			std::cerr << "pot " << pot_num << " is shared by " << last_sharer << " people" << std::endl;
+			log.detailed_out() << "[GAME STAT] pot " << pot_num << " is shared by " << last_sharer << " people" << std::endl;
 			broadcast("pot %d is shared by %d players", pot_num, last_sharer);
 			for (size_t i = 0; i < last_sharer; ++i) {
 				chips[rank_num[i].second] += rank_num[i].first;
 
-				std::cerr << "player " << name_of(rank_num[i].second) << " gets " << rank_num[i].first << " chips" << std::endl;
+				log.detailed_out() << "[GAME STAT] player " << name_of(rank_num[i].second) << " gets " << rank_num[i].first << " chips" << std::endl;
 				broadcast("player %d gets %d chips", rank_num[i].second, rank_num[i].first);
 			}
 
@@ -312,8 +323,6 @@ private:
 	}
 
 	ranking_t calculate_ranking(std::array<Card, 5> hand, int player) {
-		std::cerr << "calculating_ranking " << player << std::endl;
-
 		//check validity
 		bool match[5] = {false, false, false, false, false};
 		
@@ -487,52 +496,52 @@ private:
     // return true if game continues
     bool bet_loop()
     {
-        std::cerr << ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n";
-
+		log.detailed_out() << round_name << "round starts" << std::endl;
         broadcast("round starts");
 
 		// TODO remove these redundant messages
         for (auto i : player_list) {
-			std::cerr << "player " << name_of(i) << " has " << chips[i] << " chips" << std::endl;
+			log.detailed_out() << round_name << "player " << name_of(i) << " has " << chips[i] << " chips" << std::endl;
 			broadcast("player %d has %d chips", i, chips[i]);
 		}
 
-        // 从庄家下一个人开始说话
+        // start at the player next to the dealer 
         int now_player = (dealer_in_list + 1) % player_list.size();
-        if (is_pre_flop_round())
-            // 第一轮下注有大小盲，从大盲下一个人开始说话
-            now_player = (dealer_in_list + 3) % player_list.size();
+    	last_raiser = -1;
+		
+		if (is_pre_flop_round()) {
+            // preflop round starts at the next of the big blind
+			now_player = (dealer_in_list + 3) % player_list.size();
+		}
 
-        // 上一个raise的玩家，不算大小盲
-        last_raiser = -1;
 		last_raise_amount = blind << 1;
 
         for (int player = 0; player < n; player++)
             actioned[player] = checked[player] = false;
 
-        // 下注结束条件：
-        // 0. 不考虑已经fold的人
-        // 1. 每个人都说过话
-        // 2. 所有人下注相同，或者all-in
-        // 3. 不能再raise了
+        // terminal condition for a round 
+        // 0. folded players are out of consideration 
+        // 1. all the other players has actioned 
+        // 2. all the unfolded players bet the same amount or went all in and there is no more possible raise 
+		//    or all but one fold
+		//    or all players checked
 		
-		int max_chip = 0;
         for (;;)
         {
 			int current_player = player_list[now_player];
 			now_player = (now_player + 1) % player_list.size();
-
-            if (all_players_actioned() && all_bet_amounts_are_equal() && (there_is_no_possible_raise(current_player) || max_chip == 0))
-                break;
 
             if (folded[current_player])
             {
                 continue;
             }
 
-            std::cerr << "current player is " << name_of(current_player) << "\n";
-			max_chip = std::max(max_chip, chips[current_player]);
+            if ((all_players_actioned() && ((all_bet_amounts_are_equal() && there_is_no_possible_raise(current_player)) || all_players_checked())) || all_except_one_fold() )
+                break;
 
+
+            log.detailed_out() << round_name << "current player is " << name_of(current_player) << std::endl;
+			
             int amount = get_bet_from(current_player);
 			if (amount == -2) {
 				check(current_player);
@@ -543,29 +552,13 @@ private:
                 fold(current_player);
             actioned[current_player] = true;
 
-            if (all_except_one_fold())
-            {
-                std::cerr << "all_except_one_fold\n";
-                break;
-            }
-
-            if (all_players_checked())
-            {
-                std::cerr << "all_players_checked\n";
-                break;
-            }
+			// may occur in preflop round
+			if (last_raiser == - 1 && !folded[current_player] && !checked[current_player]) {
+				last_raiser = current_player;
+			}
         }
 
 		
-        // print old pots and contributions
-        for (size_t i = 0; i < pots.size(); ++i)
-        {
-			const Pot& pot = pots[i];
-            std::cerr << "pot " << i << " has " << pot.amount() << " chips contributed by";
-            for (int player : pot.contributors())
-                std::cerr << " " << name_of(player);
-			std::cerr << std::endl;;
-        } 
 
         // calculate pots and contributions from current_bets
         while (true)
@@ -582,22 +575,33 @@ private:
                     pot.add(player);
                 } 
             }
-            pots.emplace_back(std::move(pot));
+			if (pots.empty() || !pots.back().merge(pot)) {
+            	pots.emplace_back(pot);
+			}
 
+
+			// TODO merge pots at client
 			{
-				const Pot& pot = pots.back();
 				std::ostringstream oss;
 
-				std::cerr << "pot " << pots.size() - 1 << " has " << pot.amount() << " chips contributed by";
 				for (int player : pot.contributors()) {
-					std::cerr << " " << name_of(player);
 					oss << " " << player;
 				}
-				std::cerr << std::endl;;
-				broadcast("pot %d has %d chips contributed by%s", pots.size() - 1, pot.amount(), oss.str().c_str());
+				broadcast("pot %d has %d chips contributed by%s", old_pot_size++, pot.amount(), oss.str().c_str());
 			}
 		}
 
+        // print pots and contributions
+        for (size_t i = 0; i < pots.size(); ++i)
+        {
+			const Pot& pot = pots[i];
+            log.detailed_out() << round_name << "pot " << i << " has " << pot.amount() << " chips contributed by";
+            for (int player : pot.contributors())
+                log.detailed_out() << " " << name_of(player);
+			log.detailed_out() << std::endl;;
+        } 
+		
+		log.detailed_out() << round_name << "round ends" << std::endl;
         broadcast("round ends");
 
         // only one player left, do not deal more cards, and do not require showdown
@@ -674,7 +678,7 @@ private:
         }
         else
         {
-            std::cerr << "unknown action " << action_name << "\n";
+            log.detailed_out() << "[WARNING] unknown action " << action_name << std::endl;
             return -1;
         }
     }
@@ -683,25 +687,27 @@ private:
     {
 		assert(amount >= 0);
 
+		log.detailed_out() << round_name << "player " << name_of(player) << " tries to bet " << amount << std::endl;
         if (chips[player] < amount)
         {
-            std::cerr << "illegal bet: insufficient chips\n";
+            log.detailed_out() << "[WARNING] illegal bet: insufficient chips" << std::endl;
             fold(player);
         }
         else
         {
             int previous_bet = *std::max_element(current_bets.begin(), current_bets.end()); 
             int actual_bet = current_bets[player] + amount;
+			int raise_amount = actual_bet - previous_bet;
 
             if (chips[player] > amount && actual_bet < previous_bet)
             {
-                std::cerr << "illegal bet: have sufficient chips but didn't bet as much as the previous player\n";
+                log.detailed_out() << "[WARNING] illegal bet: have sufficient chips but didn't bet as much as the previous player, bet " << amount << ", need" << previous_bet - current_bets[player] << std::endl;
                 fold(player);
             }
 
-            else if (chips[player] > amount && actual_bet > previous_bet && actual_bet - previous_bet < last_raise_amount)
+            else if (chips[player] > amount && actual_bet > previous_bet && raise_amount < last_raise_amount)
             {
-                std::cerr << "illegal bet: have sufficient chips but didn't raise as much as the last raised\n";
+                log.detailed_out() << "[WARNING] illegal bet: have sufficient chips but didn't raise as much as the last raised, bet " << amount << ", need" << previous_bet + last_raise_amount - current_bets[player] << std::endl;
                 fold(player);
             }
             else
@@ -709,22 +715,39 @@ private:
                 chips[player] -= amount;
                 current_bets[player] += amount;
 
-                if (amount > 0 && actual_bet == previous_bet)
+				if (amount == 0) {
+					if (last_raiser == -1 && !is_pre_flop_round()) {
+						check(player);
+					}
+
+					else if (actual_bet < previous_bet) {
+						assert(chips[player] == 0);
+
+						log.detailed_out() << round_name << "player " << name_of(player) << " goes all in" << std::endl;
+					}
+
+					else {
+						log.detailed_out() << round_name << "player " << name_of(player) << " calls" << std::endl;
+					}
+				}
+
+				else if (actual_bet == previous_bet)
                 {
-                    std::cerr << "player " << name_of(player) << " calls\n";
+                    log.detailed_out() << round_name << "player " << name_of(player) << " calls" << std::endl;
                 }
-                else if (amount > 0 && actual_bet > previous_bet)
-                {
-                    std::cerr << "player " << name_of(player) << " raises\n";
-                    if (actual_bet - previous_bet >= last_raise_amount) {
-						last_raise_amount = actual_bet - previous_bet;
-						last_raiser = player;
+                else if (actual_bet > previous_bet)
+                {	
+					last_raiser = player;
+					if (raise_amount < last_raise_amount) {
+						assert(chips[player] == 0);
+						log.detailed_out() << round_name << "player " << name_of(player) << " goes all in" << std::endl;
+					}
+
+					else {
+						last_raise_amount = raise_amount;
+                    	log.detailed_out() << round_name << "player " << name_of(player) << " raises by " << raise_amount << std::endl;
 					}
                 }
-				else if (amount == 0) {
-					if (last_raiser == -1)
-						last_raiser = player;
-				}
 
                 broadcast("player %d bets %d", player, amount);
             }
@@ -734,19 +757,19 @@ private:
     void fold(int player)
     {
         folded[player] = true;
-		std::cerr << "player " << name_of(player) << " folds" << std::endl;
+		log.detailed_out() << round_name << "player " << name_of(player) << " folds" << std::endl;
         broadcast("player %d folds", player);
     }
 
 	void check(int player) {
 		if (last_raiser != -1 || is_pre_flop_round()) {
-			std::cerr << "illegal check: there are active bets" << std::endl;
+			log.detailed_out() << "[WARNING] illegal check: there are active bets" << std::endl;
 			fold(player);
 			return ;
 		}
 
 		checked[player] = true;
-		std::cerr << "player " << name_of(player) << " checks" << std::endl;
+		log.detailed_out() << round_name << "player " << name_of(player) << " checks" << std::endl;
 		broadcast("player %d checks", player);
 	}
 
@@ -762,7 +785,7 @@ private:
         va_start(args, format);
         vsnprintf(buffer, 4096, format, args);
 
-		std::cerr << "[broadcast] " << buffer << std::endl;
+		log.msg() << "[broadcast] " << buffer << std::endl;
 
         io.broadcast(std::string(buffer));
         va_end(args);
@@ -775,7 +798,7 @@ private:
         va_start(args, format);
         vsnprintf(buffer, 4096, format, args);
 		
-		std::cerr << "[send to " << name_of(player) << "] " << buffer << std::endl;
+		log.msg() << "[send to " << name_of(player) << "] " << buffer << std::endl;
 
         io.send(player, std::string(buffer));
         va_end(args);
@@ -784,7 +807,7 @@ private:
     void receive(int player, std::string &message)
     {
         io.receive(player, message);
-		std::cerr << "[receive from " << name_of(player) << "] " << message << std::endl;
+		log.msg() << "[receive from " << name_of(player) << "] " << message << std::endl;
 	}
 
 	// Deprecated
@@ -804,7 +827,7 @@ private:
         else if (suit == "spade")
             card.suit = 'S';
         else
-            std::cerr << "invalid suit " << suit << "\n";
+            log.err() << "invalid suit " << suit << "\n";
     }
 
     const char *name_of(int player)
@@ -883,6 +906,7 @@ private:
     {
         Card card = deck.deal();
         community_cards.emplace_back(card);
+		log.detailed_out() << this->round_name << suit_of(card.suit) << ' ' << rank_of(card.rank) << std::endl;
         broadcast("%s card %c %c", round_name, card.rank, card.suit);
     }
 
@@ -908,19 +932,16 @@ private:
         for (auto player : player_list)
         {
             if (!folded[player] && chips[player] != 0 && amt != current_bets[player]) {
-		//		std::cerr << "all_bet_amounts_are_equal returns false because amt = " << amt
-		//			<< " but player " << name_of(player) << " only bets " << current_bets[player] << std::endl;
 				return false;
 			}
         }
-        //std::cerr << "all_bet_amounts_are_equal returns true, amt =" << amt << "\n";
         return true;
     }
 
     bool there_is_no_possible_raise(int next_to_play)
     {
-        // FIXME not sure about pre-flop round
-        return is_pre_flop_round() || last_raiser == next_to_play;
+        // the big blind should still have a chance to raise
+		return last_raiser == next_to_play;
     }
 
     bool is_pre_flop_round()
@@ -936,7 +957,7 @@ private:
         {
             int p = (player - i + n) % n;
             if (folded[p]) continue;
-            std::cerr << "previous player of " << name_of(player) << " is " << name_of(p) << "\n";
+            log.err() << "previous player of " << name_of(player) << " is " << name_of(p) << "\n";
             return p;
         }
         assert(false);
@@ -957,12 +978,12 @@ private:
 				player_list.push_back(i);
 
 		if (player_list.size() == 0) {
-			std::cerr << "[ERROR] no players left" << std::endl;
+			log.err() << "[ERROR] no players left" << std::endl;
 			return false;
 		}
 
 		if (player_list.size() == 1) {
-			std::cerr << "[NOTE] only one player is left" << std::endl;
+			log.err() << "[NOTE] only one player is left" << std::endl;
 			return false;
 		}
 
@@ -970,22 +991,17 @@ private:
 		dealer_in_list = std::find(player_list.begin(), player_list.end(), dealer) - player_list.begin();
 
 		small_blind = player_list[(dealer_in_list + 1) % num_of_participating_players()];
-		if (chips[small_blind] < blind) {
-			std::cerr << "[NOTE] player " << names[small_blind] << " has only " << chips[small_blind] <<
-				", who has to go all in for the small blind"<< blind << std::endl;
-		}
 
 		big_blind = player_list[(dealer_in_list + 2) % num_of_participating_players()];
-		if (chips[big_blind] < 2 * blind) {
-			std::cerr << "[NOTE] player " << names[big_blind] << " has only " << chips[big_blind] <<
-				", who has to go all in for the big blind" << 2 * blind << std::endl;
-		}
 
 		reset_current_bets();
 		deck.shuffle();
 		std::fill(folded.begin(), folded.end(), false);
 		pots.clear();
 		community_cards.clear();
+
+		// TODO remove it 
+		old_pot_size = 0;
 
 		return true;
 	}
@@ -1015,6 +1031,11 @@ private:
 	int last_raise_amount;
 	std::vector<int> player_list;
 	int game_cnt;
+
+	Log& log;
+	std::string round_name;
+
+	size_t old_pot_size;
 };
 
 }

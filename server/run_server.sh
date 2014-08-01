@@ -1,3 +1,3 @@
 #!/bin/bash
 
-./server 12345 $1 5000 2>&1 | tee run.log
+./server 12345 $1 1000 s_12345
