@@ -580,14 +580,14 @@ private:
 			}
 
 
-			// TODO merge pots at client
+			
 			{
 				std::ostringstream oss;
 
 				for (int player : pot.contributors()) {
 					oss << " " << player;
 				}
-				broadcast("pot %d has %d chips contributed by%s", old_pot_size++, pot.amount(), oss.str().c_str());
+				broadcast("pot %d has %d chips contributed by%s", pots.size(), pot.amount(), oss.str().c_str());
 			}
 		}
 
@@ -1000,9 +1000,6 @@ private:
 		pots.clear();
 		community_cards.clear();
 
-		// TODO remove it 
-		old_pot_size = 0;
-
 		return true;
 	}
 
@@ -1035,7 +1032,6 @@ private:
 	Log& log;
 	std::string round_name;
 
-	size_t old_pot_size;
 };
 
 }
