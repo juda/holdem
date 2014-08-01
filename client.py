@@ -11,13 +11,16 @@ class info:
         	self.current_money=[]
         	self.names=[]
         	self.my_id=0
+        	self.I_am_out=False
 
         def clear(self):
         	self.mycards=[]
+        	if self.current_money[self.my_id]<=0:
+        		self.I_am_out=True
+        	else:
+        		self.I_am_out=False
         	for i in xrange(len(self.names)):
         		self.current_bets[i]=0
-        		self.current_players[i]=0
-        		self.current_money[i]=0
 
         def recieve(self):
         	res=''
@@ -27,6 +30,10 @@ class info:
         			print res
         			return res
         		res+=temp
+
+        def sent(self,message):
+        	print '[[send!]]',message.rstrip()
+        	info.client.send(message)
     
 class Card:
         numbers='23456789TJQKA'
@@ -106,7 +113,7 @@ def Connect(name):
     except:
     	print 'connect failed'
     	exit(1)
-    info.client.send('login Juda\n')
+    query.sent('login Juda\n')
     print 'login successful!'
 
 def GameInit():
@@ -138,25 +145,25 @@ def GameBegin():
 	query.dealer=int(query.recieve().split()[2])
 	members=query.number_of_participants
 
-	location=query.current_players.index(query.dealer)
-	location+=1
-	if location>=members:
-		location-=members
-	query.current_bets[location]=int(query.recieve().split()[4])
+	command=query.recieve().split()
+	location=int(command[1])
+	query.current_bets[location]=int(command[4])
+	query.current_money[location]-=int(command[4])
 	query.current_pot=query.current_bets[location]
 
 	
-	location+=1
-	if location>=members:
-		location-=members
-	query.current_bets[location]=int(query.recieve().split()[4])
-
+	command=query.recieve().split()
+	location=int(command[1])
+	query.current_bets[location]=int(command[4])
+	query.current_money[location]-=int(command[4])
 	query.current_pot=max(query.current_bets[location],query.current_pot)
+
 	query.up=0
-	card1,card2=query.recieve().split()[2:]
-	query.mycards.append('%s%s'%(card1,card2))
-	card1,card2=query.recieve().split()[2:]
-	query.mycards.append('%s%s'%(card1,card2))
+	if not query.I_am_out:
+		card1,card2=query.recieve().split()[2:]
+		query.mycards.append('%s%s'%(card1,card2))
+		card1,card2=query.recieve().split()[2:]
+		query.mycards.append('%s%s'%(card1,card2))
 	firstTurn()
 
 def firstTurn():
@@ -170,21 +177,26 @@ def firstTurn():
 	while True:
 		command=query.recieve().split()
 		if command[0]=='action':
+			print '[!]',query.current_pot,query.current_bets[query.my_id],query.current_money[query.my_id]
 			if query.current_bets[query.my_id]>0:
 				temp=min(query.current_pot-query.current_bets[query.my_id],query.current_money[query.my_id])
-				info.client.send('bet %d\n'%temp)
+				print '[!!]',temp
+				query.sent('bet %d\n'%temp)
 			else:
 				if query.mycards[0][0]==query.mycards[1][0] or query.mycards[0][1]==query.mycards[1][1]:
 					temp=min(query.current_pot-query.current_bets[query.my_id],query.current_money[query.my_id])
-					info.client.send('bet %d\n'%temp)
+					print '[!!]',temp
+					query.sent('bet %d\n'%temp)
 				else:
-					info.client.send('fold\n')
+					query.sent('fold\n')
 		elif command[0]=='round':
 			break
 		elif command[0]=='player':
 			member=int(command[1])
 			if command[2]=='folds':
 				query.number_of_participants-=1
+				if member==query.my_id:
+					query.I_am_out=True
 			elif command[2]=='bets':
 				temp=int(command[3])
 				query.current_money[member]-=temp
@@ -211,7 +223,7 @@ def secondTurn():
 		command=query.recieve().split()
 		query.current_money[int(command[1])]=int(command[3])
 
-	query.current_pot=0
+	query.current_pot=query.blind*2
 	query.up=0
 	for i in xrange(members):
 		query.current_bets[i]=0
@@ -221,9 +233,9 @@ def secondTurn():
 		if command[0]=='action':
 			if query.current_pot==0:
 				if query.current_money[query.my_id]>0:
-					info.client.send('bet 1\n')
+					query.sent('bet 1\n')
 				else:
-					info.client.send('bet 0\n')
+					query.sent('bet 0\n')
 			else:
 				card=Card()
 				card=card.chooseBest(query.mycards)[0]
@@ -231,20 +243,22 @@ def secondTurn():
 				if card[0]>2:
 					if card[0]>4:
 						atlease=min(query.current_pot-query.current_bets[query.my_id]+query.up,query.current_money[query.my_id])
-					info.client.send('bet %d\n'%atlease)
+					query.sent('bet %d\n'%atlease)
 				elif card[0]==2:
 					if random.randint(1,100)<50:
-						info.client.send('bet %d\n'%atlease)
+						query.sent('bet %d\n'%atlease)
 					else:
-						info.client.send('fold\n')
+						query.sent('fold\n')
 				else:
-					info.client.send('fold\n')
+					query.sent('fold\n')
 		elif command[0]=='round':
 			break
 		elif command[0]=='player':
 			member=int(command[1])
 			if command[2]=='folds':
 				query.number_of_participants-=1
+				if member==query.my_id:
+					query.I_am_out=True
 			elif command[2]=='bets':
 				if query.current_pot==0:
 					query.number_of_pots+=1
@@ -274,7 +288,7 @@ def thirdTurn():
 		command=query.recieve().split()
 		query.current_money[int(command[1])]=int(command[3])
 
-	query.current_pot=0
+	query.current_pot=query.blind*2
 	query.up=0
 	for i in xrange(members):
 		query.current_bets[i]=0
@@ -284,9 +298,9 @@ def thirdTurn():
 		if command[0]=='action':
 			if query.current_pot==0:
 				if query.current_money[query.my_id]>0:
-					info.client.send('bet 1\n')
+					query.sent('bet 1\n')
 				else:
-					info.client.send('bet 0\n')
+					query.sent('bet 0\n')
 			else:
 				card=Card()
 				card=card.chooseBest(query.mycards)[0]
@@ -294,22 +308,24 @@ def thirdTurn():
 				if card[0]>2:
 					if card[0]>4:
 						atlease=min(query.current_pot-query.current_bets[query.my_id]+query.up,query.current_money[query.my_id])
-						info.client.send('bet %d\n'%random.randint(atlease,query.current_money[query.my_id]))
+						query.sent('bet %d\n'%random.randint(atlease,query.current_money[query.my_id]))
 					else:
-						info.client.send('bet %d\n'%atlease)
+						query.sent('bet %d\n'%atlease)
 				elif card[0]==2:
 					if random.randint(1,100)<30:
-						info.client.send('bet %d\n'%atlease)
+						query.sent('bet %d\n'%atlease)
 					else:
-						info.client.send('fold\n')
+						query.sent('fold\n')
 				else:
-					info.client.send('fold\n')
+					query.sent('fold\n')
 		elif command[0]=='round':
 			break
 		elif command[0]=='player':
 			member=int(command[1])
 			if command[2]=='folds':
 				query.number_of_participants-=1
+				if member==query.my_id:
+					query.I_am_out=True
 			elif command[2]=='bets':
 				if query.current_pot==0:
 					query.number_of_pots+=1
@@ -339,7 +355,7 @@ def forthTurn():
 		command=query.recieve().split()
 		query.current_money[int(command[1])]=int(command[3])
 
-	query.current_pot=0
+	query.current_pot=query.blind*2
 	query.up=0
 	for i in xrange(members):
 		query.current_bets[i]=0
@@ -349,34 +365,36 @@ def forthTurn():
 		if command[0]=='action':
 			if query.current_pot==0:
 				if query.current_money[query.my_id]>0:
-					info.client.send('bet 1\n')
+					query.sent('bet 1\n')
 				else:
-					info.client.send('bet 0\n')
+					query.sent('bet 0\n')
 			else:
 				card=Card()
 				card=card.chooseBest(query.mycards)[0]
 				atlease=min(query.current_pot-query.current_bets[query.my_id],query.current_money[query.my_id])
 				if card[0]>2:
 					if card[0]>6:
-						info.client.send('bet %d\n'%query.current_money[query.my_id])
+						query.sent('bet %d\n'%query.current_money[query.my_id])
 					elif card[0]>4:
 						atlease=min(query.current_pot-query.current_bets[query.my_id]+query.up,query.current_money[query.my_id])
-						info.client.send('bet %d\n'%random.randint(atlease,query.current_money[query.my_id]))
+						query.sent('bet %d\n'%random.randint(atlease,query.current_money[query.my_id]))
 					else:
-						info.client.send('bet %d\n'%atlease)
+						query.sent('bet %d\n'%atlease)
 				elif card[0]==2:
 					if random.randint(1,100)<20:
-						info.client.send('bet %d\n'%atlease)
+						query.sent('bet %d\n'%atlease)
 					else:
-						info.client.send('fold\n')
+						query.sent('fold\n')
 				else:
-					info.client.send('fold\n')
+					query.sent('fold\n')
 		elif command[0]=='round':
 			break
 		elif command[0]=='player':
 			member=int(command[1])
 			if command[2]=='folds':
 				query.number_of_participants-=1
+				if member==query.my_id:
+					query.I_am_out=True
 			elif command[2]=='bets':
 				if query.current_pot==0:
 					query.number_of_pots+=1
@@ -399,22 +417,27 @@ def forthTurn():
 
 def showdown():
 	query.recieve()
-	card=Card()
-	card=card.chooseBest(query.mycards)[1]
-	res=''
-	for i in card:
-		res+='%c%c '%(i[0],i[1])
-	res+='\n'
-	print '[showdown] %s'%res
-	info.client.send(res)
+	if not query.I_am_out:
+		query.recieve()
+		card=Card()
+		card=card.chooseBest(query.mycards)[1]
+		res=''
+		for i in card:
+			res+='%c%c '%(i[0],i[1])
+		res+='\n'
+		print '[showdown] %s'%res.rstrip()
+		query.sent(res)
 	for i in xrange(query.number_of_participants):
 		query.recieve()
+	print '[showdown end]'
 
 def declareWinner():
 	query.recieve()
 	while True:
 		command=query.recieve().split()
 		if command[0]=='game':
+			if query.current_money[query.my_id]<=0:
+				query.I_am_out=True
 			if command[1]=='over':
 				exit(0)
 			return
