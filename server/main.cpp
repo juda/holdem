@@ -1,17 +1,24 @@
 #include <cstdlib>
 #include <iostream>
 #include <boost/asio.hpp>
+#include <clocale>
+#include "log.h"
 #include "Server.h"
 
 using namespace holdem;
 
 int main(int argc, char* argv[])
 {
-    if (argc != 4)
+    if (argc < 4 || argc > 5)
     {
-        std::cerr << "Usage: server <port> <numPlayers> <initialChips>\n";
+        std::cerr << "Usage: server <port> <numPlayers> <initialChips> [log file name]" << std::endl;
         return 1;
     }
+
+	Log& log = Log::get_instance();
+	if (argc == 5) {
+		log.set_file_name(argv[4]);	
+	}
 
     const int port = std::atoi(argv[1]);
     const int num_players = std::atoi(argv[2]);
@@ -25,6 +32,7 @@ int main(int argc, char* argv[])
     }
     catch (std::exception &e)
     {
-        std::cerr << "Exception: " << e.what() << "\n";
+        log.err() << "Exception: " << e.what() << std::endl;
+		log.close_file();
     }
 }

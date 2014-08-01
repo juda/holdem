@@ -2,13 +2,21 @@
 #include <iostream>
 #include <functional>
 #include <string>
+#include <sstream>
 #include <boost/asio.hpp>
 #include <boost/bind.hpp>
 #include <boost/optional.hpp>
+#include "log.h"
 
 namespace holdem {
 
 using boost::asio::ip::tcp;
+
+inline std::string my_to_string(int value) {
+	std::ostringstream oss;
+	oss << value;
+	return oss.str();
+}
 
 class Session {
 public:
@@ -50,6 +58,8 @@ public:
 private:
     void handle_login(const boost::system::error_code &error)
     {
+		Log& log = Log::get_instance();
+
         if (!error)
         {
             std::istream is(&login_buf_);
@@ -58,27 +68,27 @@ private:
             
 			if (msg.substr(0, 6) == "login ")
             {
-                login_name_ = msg.substr(6, -1);
+                login_name_ = msg.substr(6, -1) + "_" + my_to_string(game_num) + "_" + my_to_string(player_num++);
                 if (login_callback_(this))
                 {
-                    std::cout << "[login] " << login_name_ << "\n";
+                    log.out() << "[login] " << login_name_ << std::endl;
 					send("login " + login_name_ + "\n");	// confirmation
                 }
                 else
                 {
-                    std::cerr << "Session handle_login: game is full\n";
+                    log.err() << "Session handle_login: game is full" << std::endl;;
                     delete this;
                 }
             }
             else
             {
-                std::cerr << "Session handle_login: login command expected\n";
+                log.err() << "Session handle_login: login command expected" << std::endl;
                 delete this;
             }
         }
         else
         {
-            std::cerr << "Session handle_login error: " << error.message() << "\n";
+            log.err() << "Session handle_login error: " << error.message() << std::endl;
             delete this;
         }
     }
@@ -90,6 +100,10 @@ private:
     std::string login_name_;
 
     boost::asio::streambuf buf;
+
+public:
+	static int game_num;
+    static int player_num;
 };
 
 }
