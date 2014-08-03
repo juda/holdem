@@ -55,20 +55,20 @@ class Card:
                 		color=i[1]
                 	if color!=i[1]:
                 		flush=0
-                sorted(hand)
+                hand.sort()
                 for i in hand:
                         five[i]+=1
                 for i in xrange(12,-1,-1):
                 	four[five[i]]=four[five[i]]*15+i
-                for i in xrange(1,5):
+                for i in range(1,5):
                 	big=hand[i]
                 	if hand[i]!=hand[i-1]+1:
-						straight=0
-                    	if i==4 and hand[4]==12 and hand[0]==0:
-                        	straight=1
-                        	big=3
-                        else:
-                        	break
+                		straight=0
+                		if i==4 and hand[4]==12 and hand[0]==0:
+                			straight=1
+                			big=3
+                		else:
+                			break
                 if straight==1 and flush==1:
                 	return (9,big)
                 if four[4]>0:
@@ -249,6 +249,7 @@ def secondTurn():
 			else:
 				card=Card()
 				card=card.chooseBest(query.mycards)[0]
+				print '[show card]:',card,query.mycards
 				atlease=min(query.current_pot-query.current_bets[query.my_id],query.current_money[query.my_id])
 				if card[0]>2:
 					if card[0]>4:
@@ -317,6 +318,7 @@ def thirdTurn():
 			else:
 				card=Card()
 				card=card.chooseBest(query.mycards)[0]
+				print '[show card]:',card,query.mycards
 				atlease=min(query.current_pot-query.current_bets[query.my_id],query.current_money[query.my_id])
 				if card[0]>2:
 					if card[0]>4:
@@ -387,6 +389,7 @@ def forthTurn():
 			else:
 				card=Card()
 				card=card.chooseBest(query.mycards)[0]
+				print '[show card]:',card,query.mycards
 				atlease=min(query.current_pot-query.current_bets[query.my_id],query.current_money[query.my_id])
 				if card[0]>2:
 					if card[0]>6:
@@ -456,6 +459,8 @@ def declareWinner():
 				query.I_am_out=True
 			if command[1]=='over':
 				print 'My ID is %d'%query.my_id
+				for i in xrange(len(query.names)):
+					print 'player %d money is %d'%(i,query.current_money[i])
 				exit(0)
 			return
 		members=int(command[5])
